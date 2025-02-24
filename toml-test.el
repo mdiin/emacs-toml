@@ -187,7 +187,48 @@ aiueo"
   (toml-test:buffer-setup
    "server12 = name"
    (should (equal "server12" (toml:read-key)))
-   (should (eq ?n (toml:get-char-at-point)))))
+   (should (eq ?n (toml:get-char-at-point))))
+
+  (toml-test:buffer-setup
+   "\"foo\" = something"
+   (should (equal "foo" (toml:read-key)))
+   (should (eq ?s (toml:get-char-at-point))))
+
+  (toml-test:buffer-setup
+   "\"foo.bar\" = something"
+   (should (equal "foo.bar" (toml:read-key)))
+   (should (eq ?s (toml:get-char-at-point))))
+
+  (toml-test:buffer-setup
+   "\"foo\" = something"
+   (should (equal "foo" (toml:read-key)))
+   (should (eq ?s (toml:get-char-at-point))))
+
+  (toml-test:buffer-setup
+   "\"\" = something"
+   (should (equal "" (toml:read-key)))
+   (should (eq ?s (toml:get-char-at-point))))
+
+  (toml-test:buffer-setup
+   "'foo' = something"
+   (should (equal "foo" (toml:read-key)))
+   (should (eq ?s (toml:get-char-at-point))))
+
+  (toml-test:buffer-setup
+   "'foo.bar' = something"
+   (should (equal "foo.bar" (toml:read-key)))
+   (should (eq ?s (toml:get-char-at-point))))
+
+  (toml-test:buffer-setup
+   "'foo' = something"
+   (should (equal "foo" (toml:read-key)))
+   (should (eq ?s (toml:get-char-at-point))))
+
+  (toml-test:buffer-setup
+   "'' = something"
+   (should (equal "" (toml:read-key)))
+   (should (eq ?s (toml:get-char-at-point))))
+  )
 
 (ert-deftest toml-test-error:read-key ()
   ;; no key
@@ -217,8 +258,24 @@ aiueo"
    (should (equal '("aiueo") (toml:read-keygroup))))
 
   (toml-test:buffer-setup
+   "[  aiueo   ]"
+   (should (equal '("aiueo") (toml:read-keygroup))))
+
+  (toml-test:buffer-setup
    "[ai-ueo]"
    (should (equal '("ai-ueo") (toml:read-keygroup))))
+
+  ;; (toml-test:buffer-setup
+  ;;  "[aiueo.\"foo.bar\"]"
+  ;;  (should (equal '("aiueo" "foo.bar") (toml:read-keygroup))))
+
+  ;; (toml-test:buffer-setup
+  ;;  "[aiueo.'foo.bar']"
+  ;;  (should (equal '("aiueo" "foo.bar") (toml:read-keygroup))))
+
+  ;; (toml-test:buffer-setup
+  ;;  "[  foo  . bar .  baz  ]"
+  ;;  (should (equal '("foo" "bar" "baz") (toml:read-keygroup))))
 
   (toml-test:buffer-setup
    "[servers]

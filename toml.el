@@ -1,11 +1,20 @@
 ;;; toml.el --- TOML (Tom's Obvious, Minimal Language) parser
 
+;; Original work:
 ;; Copyright (C) 2013 by Wataru MIYAGUNI
 
 ;; Author: Wataru MIYAGUNI <gonngo@gmail.com>
 ;; URL: https://github.com/gongo/emacs-toml
 ;; Keywords: toml parser
 ;; Version: 0.0.1
+
+;; Derived work:
+;; Copyright (C) 2025 by Matthias Varberg Ingesman
+
+;; Author: Matthias Varberg Ingesman <matthias@ingesman.dk>
+;; URL: https://github.com/mdiin/emacs-toml
+;; Keywords: toml parser
+;; Version: 1.0.0
 
 ;; MIT License
 ;;
@@ -62,7 +71,7 @@ notes:
          '((?t  . toml:read-boolean)
            (?f  . toml:read-boolean)
            (?\[ . toml:read-array)
-	   (?{  . toml:read-inline-table)
+           (?{  . toml:read-inline-table)
            (?\" . toml:read-string))))
     (mapc (lambda (char)
             (push (cons char 'toml:read-start-with-number) table))
@@ -314,8 +323,8 @@ Move point to the end of read string."
   (let (elements char-after-read)
     (while (not (char-equal (toml:get-char-at-point) ?}))
       (let ((key (toml:read-key))
-	    (value (toml:read-value)))
-	(push `(,key . ,value) elements))
+            (value (toml:read-value)))
+        (push `(,key . ,value) elements))
       (toml:seek-readable-point)
       (setq char-after-read (toml:get-char-at-point))
       (unless (char-equal char-after-read ?})
@@ -337,27 +346,41 @@ Move point to the end of read string."
 
 (defun toml:read-keygroup ()
   (toml:seek-readable-point)
-  (let (keygroup)
+  (let* (keygroup
+        (keypart-re "\\([a-zA-Z][a-zA-Z0-9_.\\-]*\\)")
+        (whitespace-re "[[:space:]]*")
+        (keypart-whitespace-re (concat whitespace-re "[\.]?" whitespace-re "['\"]?" keypart-re "['\"]?" whitespace-re))
+        (keyparts-re (concat "\\[\\(?:" keypart-whitespace-re "\\)+\\]")))
     (while (and (not (toml:end-of-buffer-p))
                 (char-equal (toml:get-char-at-point) ?\[))
-      (if (toml:search-forward "\\[\\([a-zA-Z][a-zA-Z0-9_\\.-]*\\)\\]")
+      (if (toml:search-forward keyparts-re)
           (let ((keygroup-string (match-string-no-properties 1)))
             (when (string-match "\\(_\\|\\.\\)\\'" keygroup-string)
-              (signal 'toml-keygroup-error (list (point))))
+              (signal 'toml-keygroup-error (list (point) "Key ends with an underscore or a dot.")))
             (setq keygroup (split-string (match-string-no-properties 1) "\\.")))
         (signal 'toml-keygroup-error (list (point))))
       (toml:seek-readable-point))
     keygroup))
 
+(defun toml:read-quoted-key ()
+  (if (toml:search-forward "['\"]\\([a-zA-Z0-9_.:-]*\\)['\"] *= *")
+      (let ((key (match-string-no-properties 1)))
+        key)))
+
+(defun toml:read-unquoted-key ()
+  (if (toml:search-forward "\\([a-zA-Z][a-zA-Z0-9_-]*\\) *= *")
+      (let ((key (match-string-no-properties 1)))
+        key)))
+
 (defun toml:read-key ()
   (toml:seek-readable-point)
   (if (toml:end-of-buffer-p) nil
-    (if (toml:search-forward "\\([a-zA-Z][a-zA-Z0-9_-]*\\) *= *")
+    (if (or (toml:read-quoted-key) (toml:read-unquoted-key))
         (let ((key (match-string-no-properties 1)))
           (when (string-match "_\\'" key)
-            (signal 'toml-key-error (list (point))))
+            (signal 'toml-key-error (list (point) "Key ends with an underscore.")))
           key)
-      (signal 'toml-key-error (list (point))))))
+      (signal 'toml-key-error (list (point) "Could not find a valid key.")))))
 
 (defun toml:make-hashes (keygroup key value hashes)
   (let ((keys (append keygroup (list key))))
